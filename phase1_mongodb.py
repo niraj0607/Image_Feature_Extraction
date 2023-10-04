@@ -7,6 +7,7 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 import numpy as np
 import scipy
+import math
 
 
 def compute_color_moments(image_data):
@@ -34,10 +35,16 @@ def compute_color_moments(image_data):
         moments = []
         
         for channel in range(channels):
-                 mean = torch.mean(cell_tensor[channel])
-                 std_dev = torch.std(cell_tensor[channel])
-                 skewness_value = scipy.stats.skew(cell_tensor[channel].numpy().flatten())  # Using scipy.stats for skewness
-                 moments.append((mean.item(), std_dev.item(), skewness_value))              
+                mean = torch.mean(cell_tensor[channel])
+                std_dev = torch.std(cell_tensor[channel])
+                value = torch.mean((cell_tensor[channel] - mean) ** 3)
+                if value > 0:
+                    skewness_value = math.pow(value, float(1)/3)
+                elif value < 0:
+                    skewness_value = -math.pow(abs(value), float(1)/3)
+                else:
+                    skewness_value = 0
+                moments.append((mean.item(), std_dev.item(), skewness_value))              
                  
         feature_vector.append(moments)
 
@@ -115,7 +122,7 @@ def resnet50_avgpool(image_data):
     hook.remove()
 
     # Reduce dimensionality to 1024 by averaging two consecutive entries
-    reduced_vector = torch.mean(output.view(1024, -1, 2), dim=-1).view(1024)
+    reduced_vector = torch.mean(output.view(-1, 2), axis=1).view(1024)
     
     # print(reduced_vector.shape)
     reduced_vector = np.array(reduced_vector.detach()).flatten()
@@ -159,7 +166,7 @@ def resnet50_fc(image_data):
     resnet_image = resize_224(image)
     
     # Load the pre-trained ResNet model
-    model = models.resnet50(weights="ResNet50_Weights.DEFAULT")
+    model = models.resnet50(weights=torchvision.models.ResNet50_Weights.DEFAULT)
     model.eval()
     
     def hook_fn(module, input, output):
@@ -185,7 +192,7 @@ def resnet50_fc(image_data):
 def loadDataset():
     dataset_path = "CalTech"
     transform = transforms.Compose([
-        transforms.Resize((300, 100)),
+        transforms.Resize((100, 300)),
         transforms.ToTensor()
     ])
     dataset = datasets.Caltech101(root = dataset_path, transform = transform, download = True)
@@ -204,16 +211,15 @@ def main():
     dataset = loadDataset()
     
     for i in range(len(dataset)):
-
-        image,_ = dataset[i]      
+     
         features = []
 
         # Compute and append all features in the feature list
-        features.append(compute_color_moments(image))
-        features.append(compute_hog(image))
-        features.append(resnet50_avgpool(image))
-        features.append(resnet50_layer3(image))
-        features.append(resnet50_fc(image))
+        features.append(compute_color_moments(dataset[i]))
+        features.append(compute_hog(dataset[i]))
+        features.append(resnet50_avgpool(dataset[i]))
+        features.append(resnet50_layer3(dataset[i]))
+        features.append(resnet50_fc(dataset[i]))
         print("Image ID: ", i)     
         print("Color Moments: ", features[0])   
         print("HOG: ", features[1])   

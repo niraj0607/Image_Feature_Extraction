@@ -1,4 +1,4 @@
-from Image_Feature_Extraction.phase1_mongodb import *
+from phase1_mongodb import *
 from pymongo import MongoClient
 import time
 
@@ -19,6 +19,7 @@ n = len(caltectDataset)
 
 # Create set of data to store in database 
 for image_id in range(n):
+  _, label = caltectDataset[image_id]
   if not checkChannel(caltectDataset[image_id]):
     data = {
       "_id": image_id,
@@ -27,6 +28,7 @@ for image_id in range(n):
       "avgpool": resnet50_avgpool(caltectDataset[image_id]),
       "layer3": resnet50_layer3(caltectDataset[image_id]),
       "fc": resnet50_fc(caltectDataset[image_id]),
+      "label": label
     }
   # Handle Grayscale images
   else:
