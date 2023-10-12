@@ -34,7 +34,8 @@ for image_id in range(n):
   else:
     data = {
       "_id": image_id,
-      "hog": compute_hog(caltectDataset[image_id])
+      "hog": compute_hog(caltectDataset[image_id]),
+      "label": label
     }
 
 # Store all features in database
